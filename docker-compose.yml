@@ -1,0 +1,14 @@
+# Sur le Raspberry Pi :  docker compose up -d --build
+services:
+  recettes:
+    build:
+      context: .
+      args:
+        EXPO_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+    env_file: apps/server/.env
+    environment:
+      - WEB_DIST=/app/apps/mobile/dist
+    ports:
+      - "8787:8787"
+    restart: unless-stopped

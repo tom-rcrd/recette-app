@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Recettes",
+    "slug": "recettes",
+    "scheme": "recettes",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.recettes.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Photographier une page de livre ou une fiche recette pour l'importer.",
+        "NSPhotoLibraryUsageDescription": "Choisir une photo de recette à importer."
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-router"],
+    "experiments": { "typedRoutes": false }
+  }
+}

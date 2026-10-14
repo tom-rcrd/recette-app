@@ -1,0 +1,12 @@
+{
+  "name": "recette-app",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "test": "npm run test -w @recette/core",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "mobile": "npm run start -w mobile",
+    "server": "npm run dev -w @recette/server",
+    "build:web": "npm run build:web -w mobile"
+  }
+}
