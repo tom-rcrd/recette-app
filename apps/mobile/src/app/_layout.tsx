@@ -1,5 +1,12 @@
 import type { Session } from '@supabase/supabase-js';
 import { Stack } from 'expo-router';
+// Imports par graisse : seules les polices utilisées sont embarquées
+import { Outfit_400Regular } from '@expo-google-fonts/outfit/400Regular';
+import { Outfit_500Medium } from '@expo-google-fonts/outfit/500Medium';
+import { Outfit_600SemiBold } from '@expo-google-fonts/outfit/600SemiBold';
+import { Outfit_700Bold } from '@expo-google-fonts/outfit/700Bold';
+import { YoungSerif_400Regular } from '@expo-google-fonts/young-serif/400Regular';
+import { useFonts } from 'expo-font';
 import { useEffect, useState } from 'react';
 import { Loading } from '@/components/ui';
 import { DataProvider } from '@/lib/data';
@@ -10,6 +17,7 @@ import Login from '@/components/Login';
 export default function RootLayout() {
   const t = useTheme();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [fontsLoaded, fontError] = useFonts({ YoungSerif_400Regular, Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -17,7 +25,8 @@ export default function RootLayout() {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  if (session === undefined) return <Loading />;
+  // Sans polices (erreur réseau…), on continue avec les polices système plutôt que de bloquer
+  if (session === undefined || (!fontsLoaded && !fontError)) return <Loading />;
   if (!session) return <Login />;
 
   return (
@@ -32,13 +41,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="recipe/[id]/index" options={{ title: '' }} />
-        <Stack.Screen name="recipe/[id]/cook" options={{ title: 'Mode cuisine', presentation: 'fullScreenModal' }} />
-        <Stack.Screen name="import" options={{ title: 'Importer une recette' }} />
-        <Stack.Screen name="ingredients/index" options={{ title: 'Ingrédients' }} />
-        <Stack.Screen name="ingredients/[id]" options={{ title: 'Ingrédient' }} />
-        <Stack.Screen name="techniques" options={{ title: 'Techniques' }} />
-        <Stack.Screen name="stats" options={{ title: 'Statistiques' }} />
+        <Stack.Screen name="recipe/[id]/cook" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       </Stack>
     </DataProvider>
   );

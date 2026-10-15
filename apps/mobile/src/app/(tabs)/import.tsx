@@ -1,7 +1,7 @@
 import { draftIngredientsFromLines, resolveDraftIngredients, type DraftIngredient, type MealType, type RecipeDraft } from '@recette/core';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 import { IngredientPicker } from '@/components/IngredientPicker';
 import { Body, Button, Card, Chip, Field, H1, H2, Muted, Row, Screen, Tag } from '@/components/ui';
@@ -10,27 +10,62 @@ import { importFromImage, importFromText, importFromUrl, type ImportResult } fro
 import { saveDraft, useData, type IngredientDecision } from '@/lib/data';
 import { EQUIPMENT_LABELS, INGREDIENT_CATEGORIES, MEAL_TYPE_LABELS, useTheme } from '@/lib/theme';
 
-type Mode = 'url' | 'text' | 'photo' | 'manual';
+type Mode = 'url' | 'text' | 'photo';
 const DISH_TYPES = ['entree', 'plat', 'accompagnement', 'dessert', 'sauce', 'boisson', 'pain'];
-const TAGS = ['batch_cooking', 'enfant_friendly', 'une_seule_poele', 'sans_cuisson'];
+const TAGS = ['batch_cooking', 'une_seule_poele', 'sans_cuisson', 'plaisir'];
 const toggle = <T,>(l: T[], v: T) => (l.includes(v) ? l.filter((x) => x !== v) : [...l, v]);
 
 const emptyDraft = (): RecipeDraft => ({ title: '', ingredients: [], steps: [], source_type: 'manual', servings: 2, prep_min: 10, cook_min: 0 });
 
-export default function Import() {
-  const [mode, setMode] = useState<Mode>('url');
+// Import automatique (lien, texte, photo) mis de côté pour l'instant : passer à true pour le réactiver.
+// Le code (ImportPanel ci-dessous, apps/server) reste en place.
+const IMPORT_ENABLED = false;
+
+export default function NewRecipe() {
+  const [draft, setDraft] = useState<RecipeDraft>(emptyDraft);
+  // Change à chaque nouveau brouillon pour réinitialiser le formulaire
+  const [draftKey, setDraftKey] = useState(0);
+  const [imported, setImported] = useState(false);
+
+  function load(next: RecipeDraft, fromImport: boolean) {
+    setDraft(next);
+    setImported(fromImport);
+    setDraftKey((k) => k + 1);
+  }
+  const reset = () => load(emptyDraft(), false);
+
+  return (
+    <DraftEditor
+      key={draftKey}
+      draft={draft}
+      header={(
+        <>
+          <H1>Nouvelle recette</H1>
+          {imported
+            ? <Muted>Recette importée : vérifie les ingrédients et les étapes avant d’enregistrer.</Muted>
+            : IMPORT_ENABLED ? <ImportPanel onDraft={(d) => load(d, true)} /> : null}
+        </>
+      )}
+      onSaved={reset}
+      onCancel={() => { reset(); router.back(); }}
+    />
+  );
+}
+
+/** Encart « Remplir automatiquement » : lien, texte collé ou photo. */
+function ImportPanel({ onDraft }: { onDraft: (d: RecipeDraft) => void }) {
+  const [mode, setMode] = useState<Mode | null>(null);
   const [url, setUrl] = useState('');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [draft, setDraft] = useState<RecipeDraft | null>(null);
 
   async function run(fn: () => Promise<ImportResult>) {
     setBusy(true);
     setMessage(null);
     try {
       const res = await fn();
-      if (res.draft) setDraft(res.draft);
+      if (res.draft) onDraft(res.draft);
       else {
         setMessage(res.error ?? 'Rien trouvé.');
         if (res.needsText) setMode('text');
@@ -53,46 +88,44 @@ export default function Import() {
     await run(() => importFromImage(asset.base64!, asset.mimeType ?? 'image/jpeg'));
   }
 
-  if (draft) return <DraftEditor draft={draft} onCancel={() => setDraft(null)} />;
-
   return (
-    <Screen>
-      <H1>Importer une recette</H1>
+    <Card>
+      <Body style={{ fontWeight: '700' }}>Remplir automatiquement depuis…</Body>
       <Row wrap>
-        <Chip label="Lien (site, YouTube, Insta, TikTok)" active={mode === 'url'} onPress={() => setMode('url')} />
-        <Chip label="Coller un texte" active={mode === 'text'} onPress={() => setMode('text')} />
-        <Chip label="Photo (livre, fiche)" active={mode === 'photo'} onPress={() => setMode('photo')} />
-        <Chip label="Saisie manuelle" active={mode === 'manual'} onPress={() => setDraft(emptyDraft())} />
+        <Chip label="Un lien (site, YouTube, Insta, TikTok)" active={mode === 'url'} onPress={() => setMode(mode === 'url' ? null : 'url')} />
+        <Chip label="Un texte collé" active={mode === 'text'} onPress={() => setMode(mode === 'text' ? null : 'text')} />
+        <Chip label="Une photo (livre, fiche)" active={mode === 'photo'} onPress={() => setMode(mode === 'photo' ? null : 'photo')} />
       </Row>
 
       {mode === 'url' ? (
-        <Card>
+        <>
           <Field placeholder="https://…" value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" />
           <Muted>Les sites de recettes sont lus directement (rapide, gratuit). Pour les vidéos, la recette est extraite de la description.</Muted>
           <Button label="Importer" onPress={() => run(() => importFromUrl(url.trim()))} loading={busy} disabled={!/^https?:\/\//.test(url.trim())} />
-        </Card>
+        </>
       ) : null}
 
       {mode === 'text' ? (
-        <Card>
+        <>
           <Field placeholder="Colle ici la légende Instagram, un message, une recette tapée…" value={text} onChangeText={setText}
-            multiline style={{ minHeight: 220, textAlignVertical: 'top' }} />
+            multiline style={{ minHeight: 180, textAlignVertical: 'top' }} />
           <Button label="Extraire la recette" onPress={() => run(() => importFromText(text, url || undefined))} loading={busy} disabled={text.trim().length < 20} />
-        </Card>
+        </>
       ) : null}
 
       {mode === 'photo' ? (
-        <Card>
+        <>
           <Muted>Photographie une page de livre ou une fiche manuscrite, bien à plat et lumineuse.</Muted>
           <Row wrap>
             {Platform.OS !== 'web' ? <Button label="Prendre une photo" onPress={() => pickPhoto(true)} loading={busy} /> : null}
             <Button label="Choisir une image" variant="secondary" onPress={() => pickPhoto(false)} disabled={busy} />
           </Row>
-        </Card>
+        </>
       ) : null}
 
+      {mode ? <Muted style={{ fontSize: 12 }}>L’import remplace ce qui est déjà saisi ci-dessous.</Muted> : null}
       {message ? <Body style={{ color: '#B3261E' }}>{message}</Body> : null}
-    </Screen>
+    </Card>
   );
 }
 
@@ -105,7 +138,9 @@ function initialDecision(i: DraftIngredient): IngredientDecision {
   return { kind: 'new', name: i.name, category: 'autre', ingredientKind: 'base' };
 }
 
-function DraftEditor({ draft: initial, onCancel }: { draft: RecipeDraft; onCancel: () => void }) {
+function DraftEditor({ draft: initial, header, onSaved, onCancel }: {
+  draft: RecipeDraft; header: ReactNode; onSaved: () => void; onCancel: () => void;
+}) {
   const t = useTheme();
   const { household, ingredients, catalog, refresh } = useData();
   const [draft, setDraft] = useState(initial);
@@ -129,6 +164,7 @@ function DraftEditor({ draft: initial, onCancel }: { draft: RecipeDraft; onCance
     try {
       const id = await saveDraft(household.id, draft, decisions, { meal_types: mealTypes, dish_type: dishType, equipment, tags });
       await refresh();
+      onSaved(); // le formulaire repart vide la prochaine fois
       router.replace(`/recipe/${id}`);
     } catch (e) {
       notify('Erreur', (e as Error).message);
@@ -140,10 +176,8 @@ function DraftEditor({ draft: initial, onCancel }: { draft: RecipeDraft; onCance
 
   return (
     <Screen>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <H1>Vérifier la recette</H1>
-        {draft.source_url ? <Tag label={draft.source_type} tone="accent" /> : null}
-      </Row>
+      {header}
+      {draft.source_url ? <Row wrap><Tag label={`Source : ${draft.source_type}`} tone="accent" /><Muted>{draft.source_url}</Muted></Row> : null}
       <Field label="Titre" value={draft.title} onChangeText={(v) => set('title', v)} />
       <Field label="Description" value={draft.description ?? ''} onChangeText={(v) => set('description', v)} multiline />
       <Row wrap>

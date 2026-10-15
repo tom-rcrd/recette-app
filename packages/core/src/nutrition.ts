@@ -57,23 +57,6 @@ export function completenessScore(perServing: Nutrition, recipe: Recipe, catalog
   return Math.round((protein * 0.3 + fiber * 0.25 + energy * 0.2 + hasVeg * 0.25) * 100);
 }
 
-export interface GentleAlert {
-  level: 'info' | 'tip';
-  message: string;
-}
-
-/** Repères simples, formulés sans culpabilisation. */
-export function gentleAlerts(perServing: Nutrition, recipe: Recipe): GentleAlert[] {
-  const alerts: GentleAlert[] = [];
-  const isMain = recipe.dish_type === 'plat' || recipe.meal_types.some((m) => m === 'dejeuner' || m === 'diner');
-  if (perServing.salt_g > 2.5) alerts.push({ level: 'info', message: 'Plutôt salé : pas besoin de resaler à table.' });
-  if (isMain && perServing.protein_g < 12) alerts.push({ level: 'tip', message: 'Peu de protéines : un œuf, du tofu ou des légumineuses en accompagnement ?' });
-  if (isMain && perServing.fiber_g < 4) alerts.push({ level: 'tip', message: 'Une salade ou des légumes à côté apporteraient des fibres.' });
-  if (perServing.sugars_g > 30) alerts.push({ level: 'info', message: 'Assez sucré : idéal pour se faire plaisir.' });
-  if (perServing.sat_fat_g > 12) alerts.push({ level: 'info', message: 'Riche en graisses saturées : un plat plus léger au prochain repas équilibre.' });
-  return alerts;
-}
-
 /** Coût estimé de la recette (total), à partir des prix renseignés sur les ingrédients. */
 export function estimateRecipeCost(recipe: Recipe, catalog: Map<string, Ingredient>): { total: number; perServing: number; coverage: number } {
   let total = 0;

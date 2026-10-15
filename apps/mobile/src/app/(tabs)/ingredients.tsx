@@ -1,12 +1,13 @@
 import { formatSeason, isInSeason, normalizeText } from '@recette/core';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Body, Button, Card, Chip, Field, Loading, Muted, Row, Screen, Tag } from '@/components/ui';
+import { ScoreBadge } from '@/components/ProductScore';
+import { Body, Button, Card, Chip, Field, H1, Loading, Muted, Row, Screen, Tag } from '@/components/ui';
 import { useData } from '@/lib/data';
 import { INGREDIENT_CATEGORIES } from '@/lib/theme';
 
 export default function Ingredients() {
-  const { loading, ingredients } = useData();
+  const { loading, household, ingredients } = useData();
   const [q, setQ] = useState('');
   const [kind, setKind] = useState<'all' | 'base' | 'product'>('all');
   const [category, setCategory] = useState<string | null>(null);
@@ -25,9 +26,13 @@ export default function Ingredients() {
   return (
     <Screen>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Muted>{list.length} ingrédient{list.length > 1 ? 's' : ''}</Muted>
-        <Button label="+ Nouvel ingrédient" onPress={() => router.push('/ingredients/new')} />
+        <H1>Ingrédients</H1>
+        <Row>
+          <Button label="Scanner un produit" onPress={() => router.push('/ingredients/scan')} />
+          <Button label="+ Nouveau" variant="secondary" onPress={() => router.push('/ingredients/new')} />
+        </Row>
       </Row>
+      <Muted>{list.length} ingrédient{list.length > 1 ? 's' : ''} · produits de base et produits du commerce</Muted>
       <Field placeholder="Rechercher…" value={q} onChangeText={setQ} />
       <Row wrap>
         <Chip label="Tous" active={kind === 'all'} onPress={() => setKind('all')} />
@@ -47,6 +52,7 @@ export default function Ingredients() {
             <Row wrap gap={6}>
               <Tag label={INGREDIENT_CATEGORIES[i.category] ?? i.category} />
               {i.kind === 'product' ? <Tag label="commerce" tone="accent" /> : null}
+              {household ? <ScoreBadge ingredient={i} criteria={household.score_criteria} /> : null}
               {i.season_months.length ? <Tag label={formatSeason(i.season_months)} tone={isInSeason(i, month) ? 'green' : 'amber'} /> : null}
               {i.kcal == null ? <Tag label="nutrition à compléter" tone="amber" /> : <Tag label={`${Math.round(i.kcal)} kcal/100 g`} />}
             </Row>

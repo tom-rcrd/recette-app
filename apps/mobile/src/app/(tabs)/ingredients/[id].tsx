@@ -1,10 +1,12 @@
 import { MONTHS_FR, type Ingredient } from '@recette/core';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { router, Tabs, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { IngredientPicker } from '@/components/IngredientPicker';
+import { ProductScoreCard } from '@/components/ProductScore';
 import { Body, Button, Card, Chip, Field, H2, Loading, Muted, Row, Screen, Tag } from '@/components/ui';
 import { confirm, notify } from '@/lib/alert';
 import { saveIngredient, useData } from '@/lib/data';
+import { lookupBarcode } from '@/lib/off';
 import { supabase } from '@/lib/supabase';
 import { INGREDIENT_CATEGORIES } from '@/lib/theme';
 
@@ -20,12 +22,46 @@ const blank: Partial<Ingredient> = {
 };
 
 export default function IngredientEditor() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, barcode } = useLocalSearchParams<{ id: string; barcode?: string }>();
   const { loading, household, ingredients, catalog, refresh } = useData();
   const existing = id !== 'new' ? catalog.get(id) : undefined;
   const [ing, setIng] = useState<Partial<Ingredient>>(existing ?? blank);
   const [aliases, setAliases] = useState((existing?.aliases ?? []).join(', '));
   const [saving, setSaving] = useState(false);
+  const [offStatus, setOffStatus] = useState<string | null>(null);
+  const [offBusy, setOffBusy] = useState(false);
+
+  /** Récupère le produit sur Open Food Facts. À la mise à jour, on garde ce que l'utilisateur a saisi lui-même. */
+  async function fetchOff(code: string, mode: 'create' | 'refresh') {
+    setOffBusy(true);
+    setOffStatus(null);
+    try {
+      const off = await lookupBarcode(code);
+      if (!off) {
+        setIng((x) => ({ ...x, barcode: code, kind: 'product' }));
+        setOffStatus('Produit absent d’Open Food Facts : complète la fiche à la main (tu peux aussi l’ajouter sur openfoodfacts.org).');
+      } else {
+        setIng((x) => {
+          const merged: Partial<Ingredient> = { ...x, ...off };
+          if (mode === 'refresh') {
+            // Nom, catégorie et rayon choisis par l'utilisateur prioritaires
+            merged.name = x.name || off.name;
+            merged.category = x.category && x.category !== 'autre' ? x.category : off.category;
+          }
+          return merged;
+        });
+        setOffStatus(mode === 'create' ? 'Fiche remplie depuis Open Food Facts : vérifie et enregistre.' : 'Données Open Food Facts mises à jour.');
+      }
+    } catch (e) {
+      setOffStatus((e as Error).message);
+    }
+    setOffBusy(false);
+  }
+
+  useEffect(() => {
+    if (!existing && barcode) fetchOff(barcode, 'create');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [barcode]);
 
   if (loading || !household) return <Loading />;
   const set = <K extends keyof Ingredient>(k: K, v: Ingredient[K] | null) => setIng((x) => ({ ...x, [k]: v }));
@@ -61,12 +97,24 @@ export default function IngredientEditor() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: existing?.name ?? 'Nouvel ingrédient' }} />
+      <Tabs.Screen options={{ title: existing?.name ?? (barcode ? 'Produit scanné' : 'Nouvel ingrédient') }} />
+      {offBusy ? <Muted>Recherche sur Open Food Facts…</Muted> : null}
+      {offStatus ? <Muted>{offStatus}</Muted> : null}
+      {ing.kind === 'product' && (ing.barcode || ing.nutriscore_grade) ? (
+        <ProductScoreCard ingredient={{ id: 'draft', aliases: [], season_months: [], allergens: [], ...ing } as Ingredient} criteria={household.score_criteria} />
+      ) : null}
       <Card>
         <Row wrap>
           <Field label="Nom" value={ing.name ?? ''} onChangeText={(v) => set('name', v)} />
           <Field label="Marque (produit du commerce)" value={ing.brand ?? ''} onChangeText={(v) => set('brand', v || null)} />
         </Row>
+        {ing.kind === 'product' ? (
+          <Row>
+            <Field label="Code-barres" value={ing.barcode ?? ''} onChangeText={(v) => set('barcode', v.trim() || null)} keyboardType="number-pad" />
+            <Button label={offBusy ? '…' : 'Actualiser depuis Open Food Facts'} variant="secondary" disabled={!ing.barcode || offBusy}
+              onPress={() => fetchOff(ing.barcode!, existing ? 'refresh' : 'create')} />
+          </Row>
+        ) : null}
         <Field label="Autres noms (séparés par des virgules) — aident à reconnaître l’ingrédient à l’import" value={aliases} onChangeText={setAliases} />
         <Row wrap>
           <Chip label="Produit de base" active={ing.kind === 'base'} onPress={() => set('kind', 'base')} />

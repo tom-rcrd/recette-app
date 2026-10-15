@@ -109,6 +109,12 @@ describe('filtres anti-frustration', () => {
     expect(matchesFilters(rizCurry, { maxMinutes: 30 }, ctx)).toBe(true);
     expect(matchesFilters(gratin, { maxMinutes: 30 }, ctx)).toBe(false);
   });
+  it('plaisir / plats du quotidien', () => {
+    const pizza = { ...rizCurry, id: 'pizza', tags: ['plaisir'] };
+    expect(matchesFilters(pizza, { tags: ['plaisir'] }, ctx)).toBe(true);
+    expect(matchesFilters(pizza, { excludeTags: ['plaisir'] }, ctx)).toBe(false);
+    expect(matchesFilters(rizCurry, { excludeTags: ['plaisir'] }, ctx)).toBe(true);
+  });
   it('avec ce que j’ai au frigo', () => {
     const pantry: PantryItem[] = ['riz', 'oeuf', 'oignon'].map((id) => ({
       id, ingredient_id: id, location: 'frigo', quantity: null, unit: null, expires_on: null, is_staple: false,

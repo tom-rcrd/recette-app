@@ -1,14 +1,15 @@
 import {
-  completenessScore, computeRecipeNutrition, durationClass, estimateRecipeCost, formatQuantity, gentleAlerts,
-  isInSeason, suggestRecipes, totalMinutes,
+  completenessScore, computeRecipeNutrition, durationClass, estimateRecipeCost, formatQuantity, nutritionMessages,
+  isInSeason, substitutionSuggestions, suggestRecipes, totalMinutes,
 } from '@recette/core';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, Tabs, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Linking, Pressable, Text, View } from 'react-native';
 import { confirm, notify } from '@/lib/alert';
+import { NutritionMessageList } from '@/components/NutritionMessages';
 import { RecipeCard } from '@/components/RecipeCard';
 import { Body, Button, Card, Chip, Field, H1, H2, Loading, Muted, Row, Screen, Tag } from '@/components/ui';
-import { addNote, deleteRecipe, fetchNotes, logMeal, setRating, today, useData } from '@/lib/data';
+import { addNote, deleteRecipe, fetchNotes, logMeal, saveSubstitution, setRating, setTags, today, useData } from '@/lib/data';
 import { DURATION_LABELS, EQUIPMENT_LABELS, MEAL_TYPE_LABELS, useTheme } from '@/lib/theme';
 
 const NOTE_KINDS = { note: 'Note', improvement: 'À améliorer', variant: 'Variante', cook_feedback: 'Après cuisson' } as const;
@@ -49,7 +50,7 @@ export default function RecipeDetail() {
   const month = new Date().getMonth() + 1;
   const ps = nutrition.perServing;
   const score = completenessScore(ps, recipe, catalog);
-  const alerts = gentleAlerts(ps, recipe);
+  const messages = nutritionMessages(ps, recipe, catalog);
   const cost = estimateRecipeCost(recipe, catalog);
   const dc = durationClass(recipe);
   let currentGroup: string | null | undefined;
@@ -72,7 +73,7 @@ export default function RecipeDetail() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: recipe.title }} />
+      <Tabs.Screen options={{ title: recipe.title }} />
       {recipe.image_url ? <Image source={{ uri: recipe.image_url }} style={{ width: '100%', height: 260, borderRadius: 14 }} /> : null}
       <H1>{recipe.title}</H1>
       {recipe.description ? <Body>{recipe.description}</Body> : null}
@@ -87,6 +88,39 @@ export default function RecipeDetail() {
         {recipe.tags.map((tg) => <Tag key={tg} label={tg.replace(/_/g, ' ')} tone="green" />)}
       </Row>
 
+      {/* Ingrédients d'origine animale à remplacer (lait…) */}
+      {substitutionSuggestions(recipe, catalog).map((sug) => (
+        <Card key={sug.from.id} style={{ backgroundColor: t.amberSoft, borderColor: t.amber }}>
+          <Body style={{ fontWeight: '700' }}>🥛 Cette recette contient du lait d’origine animale (« {sug.from.name} »)</Body>
+          {sug.candidates.length ? (
+            <>
+              <Muted>Le remplacer automatiquement dans toutes tes recettes par :</Muted>
+              <Row wrap>
+                {sug.candidates.map((c) => (
+                  <Chip key={c.id} tone="green" label={c.name} onPress={async () => {
+                    try {
+                      await saveSubstitution(household.id, { from_ingredient_id: sug.from.id, to_ingredient_id: c.id, ratio: 1, active: true, note: null });
+                      await refresh();
+                    } catch (e) { notify('Erreur', (e as Error).message); }
+                  }} />
+                ))}
+              </Row>
+              <Muted style={{ fontSize: 12 }}>Soja : le plus proche du lait en protéines · Avoine : plus doux, idéal en porridge et pâtisserie · Amande : plus léger.</Muted>
+            </>
+          ) : <Muted>Ajoute une boisson végétale à tes ingrédients pour pouvoir la proposer ici.</Muted>}
+        </Card>
+      ))}
+      {recipe.ingredients.some((l) => l.substituted_from) ? (
+        <Row wrap>
+          <Muted>
+            🌱 {recipe.ingredients.filter((l) => l.substituted_from).map((l) =>
+              `${catalog.get(l.substituted_from!.ingredient_id)?.name ?? '?'} → ${catalog.get(l.ingredient_id ?? '')?.name ?? '?'}`).join(', ')}
+            {' '}· les étapes peuvent encore citer l’ingrédient d’origine.
+          </Muted>
+          <Chip label="Gérer mes remplacements" onPress={() => router.push('/substitutions')} />
+        </Row>
+      ) : null}
+
       <Row wrap>
         <Button label="▶  Cuisiner" onPress={() => router.push(`/recipe/${recipe.id}/cook`)} />
         <Button label="J’ai cuisiné ça" variant="secondary" onPress={cooked} />
@@ -97,6 +131,10 @@ export default function RecipeDetail() {
             </Pressable>
           ))}
         </Row>
+        <Chip tone="amber" label="Plat plaisir" active={recipe.tags.includes('plaisir')} onPress={async () => {
+          await setTags(recipe.id, recipe.tags.includes('plaisir') ? recipe.tags.filter((x) => x !== 'plaisir') : [...recipe.tags, 'plaisir']);
+          refresh();
+        }} />
       </Row>
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
@@ -121,6 +159,9 @@ export default function RecipeDetail() {
                   <Body>
                     {l.quantity != null ? `${formatQuantity(l.quantity * factor, l.unit)} ` : ''}
                     {ing?.name ?? l.raw_text}
+                    {l.substituted_from ? (
+                      <Text style={{ color: t.green }}> (au lieu de {catalog.get(l.substituted_from.ingredient_id)?.name.toLowerCase() ?? '?'})</Text>
+                    ) : null}
                     {l.note ? <Text style={{ color: t.muted }}> ({l.note})</Text> : null}
                   </Body>
                   {l.optional ? <Tag label="optionnel" /> : null}
@@ -156,7 +197,7 @@ export default function RecipeDetail() {
             </View>
             <Body style={{ fontWeight: '700' }}>{score}</Body>
           </Row>
-          {alerts.map((a) => <Muted key={a.message}>{a.level === 'tip' ? '💡 ' : 'ℹ︎ '}{a.message}</Muted>)}
+          <NutritionMessageList messages={messages} />
           {nutrition.coverage < 1 ? (
             <Muted style={{ fontSize: 12 }}>
               Calcul partiel ({Math.round(nutrition.coverage * 100)} % des ingrédients). Manquent : {nutrition.missing.join(', ')}.

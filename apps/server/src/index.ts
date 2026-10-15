@@ -12,6 +12,14 @@ import { getProvider } from './llm/index';
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? '';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? '';
+const jwtRole = (key: string) => {
+  try { return JSON.parse(Buffer.from(key.split('.')[1] ?? '', 'base64url').toString()).role as string | undefined; } catch { return undefined; }
+};
+if (SUPABASE_ANON_KEY.startsWith('sb_secret_') || jwtRole(SUPABASE_ANON_KEY) === 'service_role') {
+  // La clé secrète contourne la RLS : chaque import verrait les ingrédients de tous les foyers
+  console.error('SUPABASE_ANON_KEY contient la clé SECRÈTE. Mets la clé publique (sb_publishable_… ou anon) dans apps/server/.env.');
+  process.exit(1);
+}
 
 type Env = { Variables: { catalog: Ingredient[] } };
 const app = new Hono<Env>();

@@ -9,3 +9,8 @@ export * from './suggest';
 export * from './shopping';
 export * from './stats';
 export * from './importDraft';
+export * from './openFoodFacts';
+export * from './productScore';
+export * from './nutritionMessages';
+export * from './substitutions';
+export * from './impact';

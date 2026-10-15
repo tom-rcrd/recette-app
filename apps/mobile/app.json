@@ -11,7 +11,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.recettes.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Photographier une page de livre ou une fiche recette pour l'importer.",
         "NSPhotoLibraryUsageDescription": "Choisir une photo de recette à importer."
       }
     },
@@ -20,7 +19,18 @@
       "output": "single",
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router"],
-    "experiments": { "typedRoutes": false }
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Scanner le code-barres d'un produit ou photographier une recette."
+        }
+      ],
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
   }
 }

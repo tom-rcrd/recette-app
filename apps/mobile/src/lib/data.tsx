@@ -1,11 +1,11 @@
 import {
   type Ingredient, type MealLogEntry, type MealType, type PantryItem, type Recipe, type RecipeDraft,
-  estimateRecipeCost,
+  type ScoreCriteria, type Substitution, applySubstitutions, estimateRecipeCost, withDefaultCriteria,
 } from '@recette/core';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase } from './supabase';
 
-interface Household { id: string; name: string; reference_meal_price: number }
+interface Household { id: string; name: string; reference_meal_price: number; score_criteria: ScoreCriteria }
 
 interface DataState {
   loading: boolean;
@@ -13,7 +13,9 @@ interface DataState {
   household: Household | null;
   ingredients: Ingredient[];
   catalog: Map<string, Ingredient>;
+  /** Recettes avec les remplacements du foyer appliqués (lait → boisson soja…) */
   recipes: Recipe[];
+  substitutions: Substitution[];
   pantry: PantryItem[];
   history: MealLogEntry[];
   refresh: () => Promise<void>;
@@ -51,26 +53,34 @@ function toIngredient(row: any): Ingredient {
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Omit<DataState, 'refresh' | 'catalog'>>({
-    loading: true, error: null, household: null, ingredients: [], recipes: [], pantry: [], history: [],
+    loading: true, error: null, household: null, ingredients: [], recipes: [], substitutions: [], pantry: [], history: [],
   });
 
   const refresh = useCallback(async () => {
     try {
-      const [hh, ing, rec, pan, hist] = await Promise.all([
-        supabase.from('households').select('id, name, reference_meal_price').limit(1).single(),
+      const [hh, ing, rec, pan, hist, subs] = await Promise.all([
+        supabase.from('households').select('id, name, reference_meal_price, score_criteria').limit(1).single(),
         supabase.from('ingredients').select('*').order('name'),
         supabase.from('recipes').select('*, recipe_ingredients(*), recipe_steps(*)').order('created_at', { ascending: false }),
         supabase.from('pantry_items').select('*'),
         supabase.from('meal_log').select('*').order('eaten_on', { ascending: false }).limit(1000),
+        supabase.from('substitutions').select('*'),
       ]);
-      const err = hh.error ?? ing.error ?? rec.error ?? pan.error ?? hist.error;
+      // Table des remplacements absente (migration 0006 pas encore exécutée) : on continue sans
+      const subsMissing = subs.error?.code === 'PGRST205' || subs.error?.code === '42P01';
+      const err = hh.error ?? ing.error ?? rec.error ?? pan.error ?? hist.error ?? (subsMissing ? null : subs.error);
       if (err) throw err;
       setState({
         loading: false,
         error: null,
-        household: { ...(hh.data as Household), reference_meal_price: Number(hh.data!.reference_meal_price) },
+        household: {
+          ...(hh.data as Household),
+          reference_meal_price: Number(hh.data!.reference_meal_price),
+          score_criteria: withDefaultCriteria(hh.data!.score_criteria),
+        },
         ingredients: (ing.data ?? []).map(toIngredient),
         recipes: (rec.data ?? []).map(toRecipe),
+        substitutions: (subsMissing ? [] : subs.data ?? []).map((x: any) => ({ ...x, ratio: Number(x.ratio) })),
         pantry: (pan.data ?? []).map((p: any) => ({ ...p, quantity: p.quantity == null ? null : Number(p.quantity) })),
         history: hist.data ?? [],
       });
@@ -83,6 +93,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<DataState>(() => ({
     ...state,
+    // Les remplacements s'appliquent ici, une fois : tous les écrans voient la version remplacée
+    recipes: state.recipes.map((r) => applySubstitutions(r, state.substitutions)),
     catalog: new Map(state.ingredients.map((i) => [i.id, i])),
     refresh,
   }), [state, refresh]);
@@ -205,10 +217,28 @@ export async function saveIngredient(householdId: string, ing: Partial<Ingredien
   else check(await supabase.from('ingredients').insert({ household_id: householdId, ...rest }));
 }
 
+export async function setTags(recipeId: string, tags: string[]) {
+  check(await supabase.from('recipes').update({ tags }).eq('id', recipeId));
+}
+
 export async function setRating(recipeId: string, rating: number) {
   check(await supabase.from('recipes').update({ rating }).eq('id', recipeId));
 }
 
 export async function deleteRecipe(recipeId: string) {
   check(await supabase.from('recipes').delete().eq('id', recipeId));
+}
+
+export async function saveCriteria(householdId: string, criteria: ScoreCriteria) {
+  check(await supabase.from('households').update({ score_criteria: criteria }).eq('id', householdId));
+}
+
+export async function saveSubstitution(householdId: string, sub: Omit<Substitution, 'id'> & { id?: string }) {
+  const { id, ...rest } = sub;
+  if (id) check(await supabase.from('substitutions').update(rest).eq('id', id));
+  else check(await supabase.from('substitutions').upsert({ household_id: householdId, ...rest }, { onConflict: 'household_id,from_ingredient_id' }));
+}
+
+export async function deleteSubstitution(id: string) {
+  check(await supabase.from('substitutions').delete().eq('id', id));
 }

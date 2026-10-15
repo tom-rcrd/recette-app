@@ -12,7 +12,7 @@ returns void language sql security definer set search_path = public as $$
     is_vegan, is_vegetarian, contains_lactose, contains_gluten, allergens
   )
   select h, v.name,
-         case when v.category = 'extra' or v.name in ('Thon en conserve', 'Sauce soja', 'Moutarde', 'Concentré de tomates') then 'product' else 'base' end,
+         case when v.category = 'extra' or v.name in ('Tomates concassées', 'Thon en conserve', 'Sauce soja', 'Moutarde', 'Concentré de tomates') then 'product' else 'base' end,
          v.aliases, v.category, v.seasons, v.gpp, v.density,
          v.kcal, v.prot, v.carbs, v.sugars, v.fat, v.sat, v.fiber, v.salt,
          v.diet = 'vegan', v.diet in ('vegan', 'vege'), v.lactose, v.gluten, v.allergens
@@ -78,7 +78,7 @@ returns void language sql security definer set search_path = public as $$
     ('Sauce soja', '{soja}', 'condiment', '{}', null, 1.15, 60, 8.0, 5.0, 1.0, 0.1, 0.0, 0.8, 14.0, 'vegan', false, true, '{soja,gluten}'),
     ('Concentré de tomates', '{"concentré de tomate"}', 'condiment', '{}', null, 1.1, 80, 4.0, 14.0, 11.0, 0.5, 0.1, 4.0, 0.2, 'vegan', false, false, '{}'),
     ('Lait de coco', '{"crème de coco"}', 'extra', '{}', null, 1.0, 190, 2.0, 3.0, 2.0, 19.0, 17.0, 0.0, 0.03, 'vegan', false, false, '{}'),
-    ('Tomates concassées', '{"tomates pelées","coulis de tomate","pulpe de tomate"}', 'extra', '{}', null, 1.05, 22, 1.2, 3.5, 3.0, 0.2, 0.0, 1.2, 0.3, 'vegan', false, false, '{}'),
+    ('Tomates concassées', '{"tomates pelées","coulis de tomate","pulpe de tomate"}', 'legume', '{}', null, 1.05, 22, 1.2, 3.5, 3.0, 0.2, 0.0, 1.2, 0.3, 'vegan', false, false, '{}'),
     ('Bouillon cube', '{bouillon,"cube de bouillon"}', 'extra', '{}', 10, null, 250, 10.0, 20.0, 5.0, 15.0, 7.0, 0.0, 55.0, 'none', false, false, '{celeri}')
   ) as v(name, aliases, category, seasons, gpp, density, kcal, prot, carbs, sugars, fat, sat, fiber, salt, diet, lactose, gluten, allergens)
   on conflict do nothing;

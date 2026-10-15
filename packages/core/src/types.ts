@@ -36,6 +36,15 @@ export interface Ingredient extends Partial<Record<keyof Nutrition, number | nul
   price_quantity?: number | null;
   price_unit?: string | null;
   pairs_with?: string[];
+
+  // Produits du commerce (Open Food Facts)
+  barcode?: string | null;
+  image_url?: string | null;
+  nutriscore_grade?: string | null;
+  nova_group?: number | null;
+  additives?: string[];
+  labels?: string[];
+  analysis_tags?: string[];
 }
 
 export interface RecipeIngredient {
@@ -48,6 +57,18 @@ export interface RecipeIngredient {
   group_label?: string | null;
   optional: boolean;
   position: number;
+  /** Rempli quand un remplacement du foyer s'applique : la ligne d'origine */
+  substituted_from?: { ingredient_id: string; quantity: number | null; unit: string | null; note?: string | null } | null;
+}
+
+/** Remplacement d'ingrédient du foyer (ex. lait → boisson soja). */
+export interface Substitution {
+  id: string;
+  from_ingredient_id: string;
+  to_ingredient_id: string;
+  ratio: number;
+  note?: string | null;
+  active: boolean;
 }
 
 export interface RecipeStep {

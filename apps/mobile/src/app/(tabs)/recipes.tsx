@@ -7,7 +7,7 @@ import { DURATION_LABELS, EQUIPMENT_LABELS, MEAL_TYPE_LABELS } from '@/lib/theme
 
 const DIETS: { key: Diet; label: string }[] = [
   { key: 'vegetarien', label: 'Végétarien' }, { key: 'vegan', label: 'Vegan' },
-  { key: 'sans_lactose', label: 'Sans lactose' }, { key: 'sans_gluten', label: 'Sans gluten' },
+  { key: 'sans_gluten', label: 'Sans gluten' },
 ];
 const DISH_TYPES = ['entree', 'plat', 'accompagnement', 'dessert', 'sauce', 'boisson', 'pain'];
 

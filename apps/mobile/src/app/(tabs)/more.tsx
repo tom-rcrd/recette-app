@@ -4,8 +4,9 @@ import { useData } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
 
 const LINKS = [
-  { href: '/import', title: 'Importer une recette', hint: 'URL, Instagram, TikTok, YouTube, photo, texte' },
-  { href: '/ingredients', title: 'Ingrédients', hint: 'Produits de base et produits du commerce, nutrition, saisons, prix' },
+  { href: '/import', title: 'Nouvelle recette', hint: 'Saisir une recette : ingrédients, étapes, temps, portions' },
+  { href: '/substitutions', title: 'Mes remplacements', hint: 'Lait → boisson végétale… appliqué automatiquement à toutes les recettes' },
+  { href: '/criteria', title: 'Mes critères', hint: 'Note perso des produits : nutrition, transformation, additifs, bio, interdits' },
   { href: '/techniques', title: 'Techniques', hint: 'Vidéos et photos de gestes : découpes, cuissons…' },
   { href: '/stats', title: 'Statistiques', hint: 'Repas cuisinés, argent économisé, aliments sauvés' },
 ] as const;

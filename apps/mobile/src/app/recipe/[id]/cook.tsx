@@ -4,6 +4,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Body, Button, Chip, Field, Loading, Muted, Row } from '@/components/ui';
 import { notify } from '@/lib/alert';
 import { addNote, logMeal, setRating, useData } from '@/lib/data';
@@ -48,6 +49,7 @@ function useTimer() {
 export default function CookMode() {
   useKeepAwake(); // l'écran reste allumé pendant la cuisine
   const t = useTheme();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { household, recipes, catalog, pantry, refresh } = useData();
   const recipe = recipes.find((r) => r.id === id);
@@ -76,7 +78,7 @@ export default function CookMode() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg }}>
+    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top, paddingBottom: insets.bottom }}>
       {/* Progression */}
       <View style={{ flexDirection: 'row', gap: 4, padding: 16 }}>
         {steps.map((_, i) => (
@@ -87,7 +89,11 @@ export default function CookMode() {
 
       <Row style={{ paddingHorizontal: 20, justifyContent: 'space-between' }}>
         <Muted>{finished ? 'Terminé' : `Étape ${index + 1} / ${steps.length}`}</Muted>
-        <Chip label={showIngredients ? 'Masquer les ingrédients' : 'Ingrédients'} onPress={() => setShowIngredients(!showIngredients)} />
+        <Row>
+          <Chip label={showIngredients ? 'Masquer les ingrédients' : 'Ingrédients'} onPress={() => setShowIngredients(!showIngredients)} />
+          {/* Plein écran sans barre de navigation : seule sortie possible */}
+          <Chip tone="neutral" label="✕ Quitter" onPress={() => (router.canGoBack() ? router.back() : router.replace(`/recipe/${recipe.id}`))} />
+        </Row>
       </Row>
 
       <View style={{ flex: 1, flexDirection: 'row' }}>

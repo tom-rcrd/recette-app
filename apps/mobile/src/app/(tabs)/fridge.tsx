@@ -95,7 +95,7 @@ export default function Fridge() {
                     <Body>{ing?.name ?? '?'}</Body>
                     {p.quantity != null ? <Muted>{formatQuantity(p.quantity, p.unit)}</Muted> : null}
                     {p.is_staple ? <Tag label="toujours là" tone="green" /> : null}
-                    {expSoon ? <Tag label={expired ? 'périmé' : `avant le ${p.expires_on!.slice(8)}/${p.expires_on!.slice(5, 7)}`} tone={expired ? 'accent' : 'amber'} /> : null}
+                    {expSoon ? <Tag label={expired ? 'périmé' : `avant le ${p.expires_on!.slice(8)}/${p.expires_on!.slice(5, 7)}`} tone={expired ? 'danger' : 'amber'} /> : null}
                   </Row>
                   <Pressable onPress={async () => { await deletePantryItem(p.id); await refresh(); }} hitSlop={10}>
                     <Text style={{ color: t.muted, fontSize: 18 }}>✕</Text>

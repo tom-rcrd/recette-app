@@ -18,8 +18,10 @@ export interface RecipeFilters {
   availableEquipment?: string[];
   /** Doit contenir tous ces ingrédients */
   withIngredientIds?: string[];
-  /** Doit avoir tous ces tags (batch_cooking, enfant_friendly…) */
+  /** Doit avoir tous ces tags (batch_cooking, plaisir…) */
   tags?: string[];
+  /** Ne doit avoir aucun de ces tags */
+  excludeTags?: string[];
 
   // Filtres anti-frustration
   noOven?: boolean;
@@ -91,6 +93,7 @@ export function matchesFilters(recipe: Recipe, f: RecipeFilters, ctx: FilterCont
     if (!f.withIngredientIds.every((id) => ids.has(id))) return false;
   }
   if (f.tags?.length && !f.tags.every((t) => recipe.tags.includes(t))) return false;
+  if (f.excludeTags?.some((t) => recipe.tags.includes(t))) return false;
   if (f.noOven && recipe.equipment.includes('four')) return false;
   if (f.onePan && !recipe.tags.includes('une_seule_poele')
       && recipe.equipment.filter((e) => COOKWARE.has(e)).length > 1) return false;
@@ -105,10 +108,10 @@ export const QUICK_FILTERS: { key: string; label: string; filters: RecipeFilters
   { key: 'moins30', label: 'Moins de 30 min', filters: { maxMinutes: 30 } },
   { key: 'sans_four', label: 'Sans four', filters: { noOven: true } },
   { key: 'une_poele', label: 'Une seule poêle', filters: { onePan: true } },
-  { key: 'sans_lactose', label: 'Sans lactose', filters: { diets: ['sans_lactose'] } },
   { key: 'vegetarien', label: 'Végétarien', filters: { diets: ['vegetarien'] } },
   { key: 'batch', label: 'Batch cooking', filters: { tags: ['batch_cooking'] } },
-  { key: 'enfants', label: 'Enfant-friendly', filters: { tags: ['enfant_friendly'] } },
+  { key: 'plaisir', label: 'Envie de se faire plaisir', filters: { tags: ['plaisir'] } },
+  { key: 'quotidien', label: 'Plats du quotidien', filters: { excludeTags: ['plaisir'] } },
 ];
 
 /** Fusionne plusieurs jeux de filtres (puces cumulées). */

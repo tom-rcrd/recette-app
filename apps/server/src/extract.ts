@@ -19,7 +19,7 @@ ${content ? '(texte ci-dessous)' : "(photo d'une page de livre ou d'une fiche ma
   "meal_types": ["dejeuner", "diner"], // parmi : ${MEAL_TYPES.join(', ')}
   "dish_type": "plat",                 // entree | plat | accompagnement | dessert | sauce | boisson | pain
   "equipment": ["poele", "four"],      // four, poele, casserole, cocotte, wok, mixeur, robot, micro_ondes, airfryer…
-  "tags": ["batch_cooking"],           // batch_cooking, enfant_friendly, une_seule_poele, sans_cuisson (si évident)
+  "tags": ["batch_cooking"],           // batch_cooking, une_seule_poele, sans_cuisson, plaisir (pizza, burger, dessert gourmand… si évident)
   "ingredients": [
     { "raw_text": "2 oignons émincés", "name": "oignon", "quantity": 2, "unit": null, "note": "émincés", "group_label": null, "optional": false }
   ],
